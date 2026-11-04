@@ -22,6 +22,7 @@ def market_news():
         load_summaries(start_date, end_date),
         start_date=start_date,
         end_date=end_date,
+        key="market_news",
     ).render(show_actions=True)
 
 

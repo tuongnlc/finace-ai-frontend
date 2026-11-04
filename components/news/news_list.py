@@ -17,6 +17,7 @@ from components.markdown.markdown import MarkDown
 
 DEFAULT_TITLE = "TIN TỨC THỊ TRƯỜNG"
 FAVORITE_TOAST_KEY = "favorite_toast"
+PAGE_SIZE = 10
 
 NEWS_SCHEMA = {
     "summary_id": pl.Utf8,
@@ -89,8 +90,10 @@ class NewsList:
         end_date: date,
         favorite_only: bool = False,
         title: str = DEFAULT_TITLE,
+        key: str = "news_list",
     ):
         self.title = title
+        self.key = key
         self.start_date = start_date
         self.end_date = end_date
         if favorite_only:
@@ -100,7 +103,7 @@ class NewsList:
         self.news = self._to_dataframe(summaries)
 
     def render(self, show_actions: bool = False) -> None:
-        news = self._apply_cascading_filters()
+        news, filter_signature = self._apply_cascading_filters()
 
         st.divider()
         MarkDown(font_size="28px", text=self.title).render()
@@ -108,8 +111,28 @@ class NewsList:
             f"Xem tin tức thị trường đáng chú ý ngày: {self.start_date} đến {self.end_date}"
         )
 
-        for idx, item in enumerate(news.to_dicts()):
+        visible = self._resolve_visible_count(news.height, filter_signature)
+        for idx, item in enumerate(news.head(visible).to_dicts()):
             self._render_card(item, idx, show_actions)
+
+        self._render_show_more(news.height - visible, visible)
+
+    def _resolve_visible_count(self, total: int, filter_signature: tuple) -> int:
+        """Số card đang hiển thị; đổi bộ lọc thì quay về trang đầu."""
+        visible_key = f"{self.key}__visible"
+        signature_key = f"{self.key}__signature"
+        if st.session_state.get(signature_key) != filter_signature:
+            st.session_state[signature_key] = filter_signature
+            st.session_state[visible_key] = PAGE_SIZE
+        return min(st.session_state.get(visible_key, PAGE_SIZE), total)
+
+    def _render_show_more(self, remaining: int, visible: int) -> None:
+        """Chỉ render khi còn tin chưa hiển thị; bấm để tải thêm một trang."""
+        if remaining <= 0:
+            return
+        if st.button(f"Xem thêm ({remaining} tin còn lại)", key=f"{self.key}__more"):
+            st.session_state[f"{self.key}__visible"] = visible + PAGE_SIZE
+            st.rerun()
 
     @staticmethod
     def _to_dataframe(summaries: Iterable) -> pl.DataFrame:
@@ -132,17 +155,19 @@ class NewsList:
             schema=NEWS_SCHEMA,
         ).sort("publish_date", descending=True)
 
-    def _apply_cascading_filters(self) -> pl.DataFrame:
+    def _apply_cascading_filters(self) -> tuple[pl.DataFrame, tuple]:
         news = self.news
         filter_cols = st.columns(len(CASCADING_FILTERS))
+        selections = []
         for (filter_name, column), filter_col in zip(CASCADING_FILTERS, filter_cols):
             with filter_col:
                 selected_values = MultiSelectDropdownFilter(
                     filter_name=filter_name,
                     options=_unique_options(news, column),
                 ).render()
+            selections.append(tuple(selected_values or []))
             news = _filter_by_values(news, column, selected_values)
-        return news
+        return news, tuple(selections)
 
     @staticmethod
     def _render_card(item: dict, idx: int, show_actions: bool) -> None:
