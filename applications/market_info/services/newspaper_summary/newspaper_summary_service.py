@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 from applications.market_info.integrations.newspaper_summary.newspaper_summary_client import NewspaperSummaryClient
 
-# from ai_engineer.applications.topic_summary.backend.schemas.newspaper_summary import DeleteNewspaperSumResponse
+from applications.schemas.newspaper_summary import DeleteNewspaperSumResponse
 
 
 class NewspaperSummary(BaseModel):
@@ -59,8 +59,8 @@ class NewspaperSummaryService:
             for item in response
         ]
 
-    # def delete_summaries(self, summary_id: str) -> DeleteNewspaperSumResponse | None:
-    #     return self.client.delete_summaries(summary_id)
+    def delete_summaries(self, summary_id: str) -> DeleteNewspaperSumResponse | None:
+        return self.client.delete_summaries(summary_id)
 
-    # def add_to_favorite(self, summary_id: str) -> None:
-    #     return self.client.add_to_favorite(summary_id)
+    def add_to_favorite(self, summary_id: str) -> None:
+        return self.client.add_to_favorite(summary_id)
