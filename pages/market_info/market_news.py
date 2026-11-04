@@ -25,5 +25,4 @@ def market_news():
     ).render(show_actions=True)
 
 
-if __name__ == "__main__":
-    market_news()
+market_news()
