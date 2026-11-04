@@ -14,6 +14,18 @@ def _get_http_session() -> requests.Session:
     return requests.Session()
 
 
+def _auth_headers() -> dict[str, str]:
+    """Header gửi kèm khi gọi backend, mang token của user hiện tại (Databricks Apps)."""
+    headers = {"accept": "*/*"}
+    try:
+        token = st.context.headers.get("X-Forwarded-Access-Token")
+    except Exception:
+        token = None
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    return headers
+
+
 class NewspaperSummaryClient:
     """
         Client for Newspaper Summary API
@@ -36,9 +48,7 @@ class NewspaperSummaryClient:
                 "min_date": min_date,
                 "max_date": max_date,
             },
-            headers={
-                "accept": "*/*",
-            },
+            headers=_auth_headers(),
             timeout=self.timeout,
         )
         response.raise_for_status()
@@ -50,9 +60,7 @@ class NewspaperSummaryClient:
     def delete_summaries(self, summary_id: str) -> None:
         response = _get_http_session().delete(
             f"{self.base_url}/newspaper-summary/{summary_id}",
-            headers={
-                "accept": "*/*",
-            },
+            headers=_auth_headers(),
             timeout=self.timeout,
         )
         response.raise_for_status()
@@ -64,9 +72,7 @@ class NewspaperSummaryClient:
             params={
                 "is_favorite": 1,
             },
-            headers={
-                "accept": "*/*",
-            },
+            headers=_auth_headers(),
             timeout=self.timeout,
         )
         response.raise_for_status()
