@@ -7,6 +7,3 @@ font = "sans serif"
 
 [server]
 runOnSave = true
-
-# Ping định kỳ giữ WebSocket sống, tránh bị proxy/mạng di động đóng khi idle
-websocketPingInterval = 20
