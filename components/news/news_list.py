@@ -20,16 +20,13 @@ FAVORITE_TOAST_KEY = "favorite_toast"
 PAGE_SIZE = 10
 
 NEWS_SCHEMA = {
-    "summary_id": pl.Utf8,
+    "newspaper_url": pl.Utf8,
     "publish_date": pl.Date,
-    "news_type": pl.Utf8,
-    "news_summary": pl.Utf8,
+    "stocks_mention": pl.List(pl.Utf8),
+    "main_topic": pl.List(pl.Utf8),
+    "person_mention": pl.List(pl.Utf8),
+    "newspaper_summary": pl.Utf8,
     "sentiment_analysis": pl.Utf8,
-    "main_topic": pl.Utf8,
-    "stocks_mention": pl.Utf8,
-    "fund_name": pl.Utf8,
-    "circular_and_policy": pl.Utf8,
-    "legal_documents_and_regulations": pl.Utf8,
 }
 
 # Options của filter sau dựa trên kết quả của filter trước
@@ -58,7 +55,7 @@ def show_pending_toast() -> None:
         st.toast(toast_message, icon="✅")
 
 
-def render_date_range_filter(days: int = 90) -> tuple[date, date]:
+def render_date_range_filter(days: int = 10) -> tuple[date, date]:
     max_date = date.today()
     min_date = max_date - timedelta(days=days)
     filter_col, _ = st.columns([2, 1])
@@ -88,7 +85,6 @@ class NewsList:
         summaries: Iterable,
         start_date: date,
         end_date: date,
-        favorite_only: bool = False,
         title: str = DEFAULT_TITLE,
         key: str = "news_list",
     ):
@@ -96,10 +92,6 @@ class NewsList:
         self.key = key
         self.start_date = start_date
         self.end_date = end_date
-        if favorite_only:
-            summaries = [item for item in summaries if item.is_favorite == 1]
-        else:
-            summaries = [item for item in summaries if item.is_favorite == 0]
         self.news = self._to_dataframe(summaries)
 
     def render(self, show_actions: bool = False) -> None:
@@ -139,16 +131,13 @@ class NewsList:
         return pl.DataFrame(
             [
                 {
-                    "summary_id": str(item.summary_id),
+                    "newspaper_url": item.newspaper_url,
                     "publish_date": item.publish_date,
-                    "news_type": item.newspaper_type,
-                    "news_summary": item.newspaper_summary,
-                    "sentiment_analysis": item.sentiment_analysis,
-                    "main_topic": item.main_topic,
                     "stocks_mention": item.stocks_mention,
-                    "fund_name": item.fund_name,
-                    "circular_and_policy": item.circular_and_policy,
-                    "legal_documents_and_regulations": item.legal_documents_and_regulations,
+                    "main_topic": item.main_topic,
+                    "person_mention": item.person_mention,
+                    "newspaper_summary": item.newspaper_summary,
+                    "sentiment_analysis": item.sentiment_analysis,
                 }
                 for item in summaries
             ],
@@ -176,23 +165,13 @@ class NewsList:
                 f":blue[Ngày đăng: {item.get('publish_date')} - "
                 f"Trạng thái: {item.get('sentiment_analysis')}]"
             )
-            st.caption(f":blue[Loại tin tức: {item.get('news_type')}]")
 
-            st.write(item.get("news_summary"))
+            st.write(item.get("newspaper_summary"))
 
             if item.get("stocks_mention"):
-                st.caption(f":green[Chứng khoán liên quan: {item.get('stocks_mention')}]")
-            if item.get("fund_name"):
-                st.caption(f":green[Quỹ liên quan: {item.get('fund_name')}]")
-
-            if item.get("circular_and_policy"):
                 st.caption(
-                    f":red[Thông tư và chính sách liên quan: {item.get('circular_and_policy')}]"
-                )
-            if item.get("legal_documents_and_regulations"):
-                st.caption(
-                    f":red[Văn bản pháp luật liên quan: "
-                    f"{item.get('legal_documents_and_regulations')}]"
+                    f":green[Chứng khoán liên quan: "
+                    f"{', '.join(item['stocks_mention'])}]"
                 )
 
             if show_actions:
@@ -200,16 +179,10 @@ class NewsList:
 
 
 def _render_card_actions(item: dict, idx: int) -> None:
-    summary_id = item.get("summary_id")
-    delete_col, follow_col, _ = st.columns([1, 3, 2], gap="small")
+    newspaper_url = item.get("newspaper_url")
+    delete_col, _ = st.columns([1, 5], gap="small")
     with delete_col:
         if st.button("Xóa", key=f"delete_{idx}"):
-            NewspaperSummaryService().delete_summaries(summary_id)
-            clear_summaries_cache()
-            st.rerun()
-    with follow_col:
-        if st.button("Thêm vào danh sách theo dõi", key=f"follow_{idx}"):
-            NewspaperSummaryService().add_to_favorite(summary_id)
-            st.session_state[FAVORITE_TOAST_KEY] = "Thêm vào danh sách theo dõi thành công!"
+            NewspaperSummaryService().delete_summaries(newspaper_url)
             clear_summaries_cache()
             st.rerun()

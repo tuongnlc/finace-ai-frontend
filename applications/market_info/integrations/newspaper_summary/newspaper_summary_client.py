@@ -4,7 +4,7 @@ from datetime import date
 from typing import Optional
 import requests
 import streamlit as st
-from applications.schemas.newspaper_summary import DeleteNewspaperSumResponse, GetNewspaperSummaryResponse
+from applications.schemas.newspaper_summary import GetNewspaperSummaryResponse
 from config import get_backend_base_url
 
 
@@ -43,7 +43,7 @@ class NewspaperSummaryClient:
         max_date: Optional[date] = None,
     ) -> list[GetNewspaperSummaryResponse]:
         response = _get_http_session().get(
-            f"{self.base_url}/newspaper-summary/",
+            f"{self.base_url}/newspaper-topic-tagging/",
             params={
                 "min_date": min_date,
                 "max_date": max_date,
@@ -57,21 +57,9 @@ class NewspaperSummaryClient:
             for item in response.json()
         ]
 
-    def delete_summaries(self, summary_id: str) -> None:
+    def delete_summaries(self, newspaper_url: str) -> None:
         response = _get_http_session().delete(
-            f"{self.base_url}/newspaper-summary/{summary_id}",
-            headers=_auth_headers(),
-            timeout=self.timeout,
-        )
-        response.raise_for_status()
-        return None
-
-    def add_to_favorite(self, summary_id: str) -> None:
-        response = _get_http_session().put(
-            f"{self.base_url}/newspaper-summary/{summary_id}",
-            params={
-                "is_favorite": 1,
-            },
+            f"{self.base_url}/newspaper-topic-tagging/{newspaper_url}",
             headers=_auth_headers(),
             timeout=self.timeout,
         )
