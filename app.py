@@ -12,16 +12,10 @@ market_news_page = st.Page(
     icon="📰",
 )
 
-favorite_news_page = st.Page(
-    "pages/market_info/favorite_news.py",
-    title="Tin tức đáng chú ý",
-    icon="📰",
-)
 
 pg = st.navigation({
     "THÔNG TIN KINH TẾ": [
         market_news_page,
-        favorite_news_page,
     ],
     
 }, position="sidebar")
