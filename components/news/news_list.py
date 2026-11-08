@@ -55,7 +55,7 @@ def show_pending_toast() -> None:
         st.toast(toast_message, icon="✅")
 
 
-def render_date_range_filter(days: int = 90) -> tuple[date, date]:
+def render_date_range_filter(days: int = 10) -> tuple[date, date]:
     max_date = date.today()
     min_date = max_date - timedelta(days=days)
     filter_col, _ = st.columns([2, 1])
