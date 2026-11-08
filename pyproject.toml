@@ -8,5 +8,5 @@ dependencies = [
     "pandas~=2.2.3",
     "polars>=2.1.0",
     "pydantic~=2.14.2",
-    "streamlit~=1.38.0",
+    "streamlit~=1.67.0",
 ]
