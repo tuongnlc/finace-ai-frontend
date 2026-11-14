@@ -6,7 +6,7 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
-from applications.market_info.integrations.newspaper_summary.newspaper_summary_client_new import NewspaperSummaryClient
+from applications.market_info.integrations.newspaper_summary.newspaper_summary_client import NewspaperSummaryClient
 
 from applications.schemas.newspaper_summary import DeleteNewspaperSumResponse
 
