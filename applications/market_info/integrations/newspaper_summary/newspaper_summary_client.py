@@ -37,8 +37,8 @@ _DEFAULT_LAKEBASE_API_BASE = (
 
 _SELECT_COLUMNS = (
     "newspaper_title,newspaper_url,publish_date,newspaper_content,"
-    "stocks_mention,main_topic,person_mention,newspaper_summary,"
-    "sentiment_analysis"
+    "stocks_mention,main_topic,person_mention,funds_mention,"
+    "stock_analysis_type,newspaper_summary,sentiment_analysis"
 )
 
 _workspace_client: WorkspaceClient | None = None

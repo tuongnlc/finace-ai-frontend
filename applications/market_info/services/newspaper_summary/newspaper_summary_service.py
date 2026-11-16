@@ -19,6 +19,8 @@ class NewspaperSummary(BaseModel):
     stocks_mention: Optional[list[str]] = None
     main_topic: Optional[list[str]] = None
     person_mention: Optional[list[str]] = None
+    funds_mention: Optional[list[str]] = None
+    stock_analysis_type: Optional[str] = None
     newspaper_summary: Optional[str] = None
     sentiment_analysis: Optional[str] = None
 
@@ -45,6 +47,8 @@ class NewspaperSummaryService:
                 stocks_mention=item.stocks_mention,
                 main_topic=item.main_topic,
                 person_mention=item.person_mention,
+                funds_mention=item.funds_mention,
+                stock_analysis_type=item.stock_analysis_type,
                 newspaper_summary=item.newspaper_summary,
                 sentiment_analysis=item.sentiment_analysis,
             )

@@ -12,6 +12,8 @@ class CreateNewspaperSummaryRequest(BaseModel):
     stocks_mention: Optional[list[str]] = None
     main_topic: Optional[list[str]] = None
     person_mention: Optional[list[str]] = None
+    funds_mention: Optional[list[str]] = None
+    stock_analysis_type: Optional[str] = None
     newspaper_summary: Optional[str] = None
     sentiment_analysis: Optional[str] = None
 
@@ -27,6 +29,8 @@ class GetNewspaperSummaryResponse(BaseModel):
     stocks_mention: Optional[list[str]] = None
     main_topic: Optional[list[str]] = None
     person_mention: Optional[list[str]] = None
+    funds_mention: Optional[list[str]] = None
+    stock_analysis_type: Optional[str] = None
     newspaper_summary: Optional[str] = None
     sentiment_analysis: Optional[str] = None
 
