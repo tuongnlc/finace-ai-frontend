@@ -25,6 +25,8 @@ NEWS_SCHEMA = {
     "stocks_mention": pl.List(pl.Utf8),
     "main_topic": pl.List(pl.Utf8),
     "person_mention": pl.List(pl.Utf8),
+    "funds_mention": pl.List(pl.Utf8),
+    "stock_analysis_type": pl.Utf8,
     "newspaper_summary": pl.Utf8,
     "sentiment_analysis": pl.Utf8,
 }
@@ -136,6 +138,8 @@ class NewsList:
                     "stocks_mention": item.stocks_mention,
                     "main_topic": item.main_topic,
                     "person_mention": item.person_mention,
+                    "funds_mention": item.funds_mention,
+                    "stock_analysis_type": item.stock_analysis_type,
                     "newspaper_summary": item.newspaper_summary,
                     "sentiment_analysis": item.sentiment_analysis,
                 }
@@ -163,7 +167,8 @@ class NewsList:
         with st.container(border=True):
             st.caption(
                 f":blue[Ngày đăng: {item.get('publish_date')} - "
-                f"Trạng thái: {item.get('sentiment_analysis')}]"
+                f"Trạng thái: {item.get('sentiment_analysis')} - "
+                f"Loại phân tích: {item.get('stock_analysis_type')}]"
             )
 
             st.write(item.get("newspaper_summary"))
@@ -172,6 +177,12 @@ class NewsList:
                 st.caption(
                     f":green[Chứng khoán liên quan: "
                     f"{', '.join(item['stocks_mention'])}]"
+                )
+
+            if item.get("funds_mention"):
+                st.caption(
+                    f":green[Quỹ liên quan: "
+                    f"{', '.join(item['funds_mention'])}]"
                 )
 
             if show_actions:
