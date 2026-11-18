@@ -8,26 +8,49 @@ DEFAULT_TITLE = "🤖 Trợ lý AI"
 VIEWPORT_SCRIPT = """
 <script>
 (() => {
-    const updateViewportHeight = () => {
-        const viewport = window.visualViewport;
-        const height = viewport?.height || window.innerHeight;
-        const top = viewport?.offsetTop || 0;
-        document.documentElement.style.setProperty(
-            "--floating-chat-viewport-height",
-            `${height}px`
-        );
-        document.documentElement.style.setProperty(
-            "--floating-chat-viewport-top",
-            `${top}px`
-        );
+    // Yêu cầu trình duyệt co lại layout viewport khi bàn phím ảo mở ra
+    // (Android Chrome). Nếu không, bàn phím sẽ đè lên các phần tử position:fixed.
+    const meta = document.querySelector('meta[name="viewport"]');
+    if (meta) {
+        const content = meta.getAttribute("content") || "";
+        if (!content.includes("interactive-widget")) {
+            meta.setAttribute("content", content + ", interactive-widget=resizes-content");
+        }
+    }
+
+    let rafId = null;
+    const updateViewport = () => {
+        if (rafId) cancelAnimationFrame(rafId);
+        rafId = requestAnimationFrame(() => {
+            const vv = window.visualViewport;
+            const height = vv?.height || window.innerHeight;
+            const top = vv?.offsetTop || 0;
+            document.documentElement.style.setProperty(
+                "--floating-chat-viewport-height",
+                `${height}px`
+            );
+            document.documentElement.style.setProperty(
+                "--floating-chat-viewport-top",
+                `${top}px`
+            );
+        });
     };
 
-    updateViewportHeight();
-    if (!window.__floatingChatViewportListener) {
-        window.__floatingChatViewportListener = true;
-        window.visualViewport?.addEventListener("resize", updateViewportHeight);
-        window.visualViewport?.addEventListener("scroll", updateViewportHeight);
-        window.addEventListener("resize", updateViewportHeight);
+    updateViewport();
+    if (!window.__floatingChatInited) {
+        window.__floatingChatInited = true;
+        window.visualViewport?.addEventListener("resize", updateViewport);
+        window.visualViewport?.addEventListener("scroll", updateViewport);
+        window.addEventListener("resize", updateViewport);
+        window.addEventListener("orientationchange", updateViewport);
+        // Khi ô nhập được focus (bàn phím mở), cập nhật lại chiều cao khung chat
+        // vì một số trình duyệt cập nhật visualViewport trễ một chút.
+        document.addEventListener("focusin", (e) => {
+            if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")) {
+                setTimeout(updateViewport, 100);
+                setTimeout(updateViewport, 350);
+            }
+        });
     }
 })();
 </script>
@@ -90,9 +113,9 @@ div[data-testid="stPopoverBody"] {
 @media (max-width: 640px) {
     div[data-testid="stPopoverBody"] {
         position: fixed !important;
-        top: var(--floating-chat-viewport-top, 0px) !important;
+        top: 0 !important;
         right: 0 !important;
-        bottom: auto !important;
+        bottom: 0 !important;
         left: 0 !important;
         width: 100vw !important;
         height: var(--floating-chat-viewport-height, 100dvh) !important;
@@ -112,32 +135,48 @@ div[data-testid="stPopoverBody"] {
         z-index: 2147483000 !important;
     }
 
-    /* Cho khối Streamlit bên trong lấp đầy chiều cao của khung chat. */
+    /* Streamlit bọc nội dung popover trong nhiều lớp div (stPopoverBody > div >
+       .stVerticalBlock > {title, history, form}). Phải đẩy flex xuống tận cùng
+       thì các thuộc tính flex trên history/form mới có tác dụng. Nếu không,
+       history giữ nguyên height:320px và đẩy form ra khỏi vùng nhìn thấy. */
     div[data-testid="stPopoverBody"] > div {
         display: flex !important;
-        flex: 1 1 auto !important;
         flex-direction: column !important;
+        flex: 1 1 auto !important;
         width: 100% !important;
         height: 100% !important;
         min-height: 0 !important;
         overflow: hidden !important;
     }
 
-    /* Lịch sử chat chiếm phần còn lại, ô nhập luôn nằm ngay bên dưới. */
+    div[data-testid="stPopoverBody"] [data-testid="stVerticalBlock"] {
+        display: flex !important;
+        flex-direction: column !important;
+        flex: 1 1 auto !important;
+        width: 100% !important;
+        height: 100% !important;
+        min-height: 0 !important;
+        overflow: hidden !important;
+    }
+
+    /* Lịch sử chat chiếm phần còn lại, ô nhập luôn nằm ngay bên dưới.
+       height:0 kết hợp flex:1 1 0 để bỏ qua inline style height:320px của
+       st.container và cho khối này co giãn theo không gian còn trống. */
     div[data-testid="stPopoverBody"] .FLOATING_CHAT_HISTORY_KEY {
         flex: 1 1 0 !important;
-        height: auto !important;
+        height: 0 !important;
         min-height: 0 !important;
         max-height: none !important;
         overflow-y: auto !important;
         overscroll-behavior: contain;
     }
 
-    div[data-testid="stPopoverBody"] .FLOATING_CHAT_HISTORY_KEY .stVerticalBlock {
-        height: 100% !important;
+    div[data-testid="stPopoverBody"] .FLOATING_CHAT_HISTORY_KEY [data-testid="stVerticalBlock"] {
+        height: auto !important;
         min-height: 0 !important;
     }
 
+    /* Form (ô nhập + nút Gửi) cố định ở dưới, không co lại. */
     div[data-testid="stPopoverBody"] form {
         flex: 0 0 auto !important;
         margin-top: 8px !important;
