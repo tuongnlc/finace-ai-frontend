@@ -50,12 +50,29 @@ div[data-testid="stPopover"] [data-testid="stPopoverButton"] svg {
     display: none !important;
 }
 
-/* Khung chat bung ra */
+/* Khung chat bung ra (desktop) */
 div[data-testid="stPopoverBody"] {
-    width: 380px !important;
-    max-width: 90vw !important;
+    width: min(380px, calc(100vw - 32px)) !important;
+    max-width: calc(100vw - 32px) !important;
     border-radius: 12px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+/* Mobile: khung chat neo theo nút rất dễ tràn/cắt nên chuyển thành
+   bottom-sheet cố định, full chiều ngang, nằm ngay trên nút chat. */
+@media (max-width: 640px) {
+    div[data-testid="stPopoverBody"] {
+        position: fixed !important;
+        top: auto !important;
+        left: 12px !important;
+        right: 12px !important;
+        bottom: 92px !important;
+        width: auto !important;
+        max-width: none !important;
+        max-height: 70vh !important;
+        /* Hủy transform mà Floating UI gán inline để dùng left/right/bottom ở trên. */
+        transform: none !important;
+    }
 }
 </style>
 """
