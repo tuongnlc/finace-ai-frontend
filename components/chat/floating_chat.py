@@ -75,7 +75,12 @@ class FloatingChat:
 
     def render(self) -> None:
         st.markdown(STYLES, unsafe_allow_html=True)
+        self._render_chat()
 
+    @st.fragment
+    def _render_chat(self) -> None:
+        # Bọc trong fragment: tương tác chat chỉ làm mới riêng khung chat,
+        # không chạy lại toàn bộ page (tránh reload cả trang mỗi lần gửi).
         with st.popover("💬"):
             st.markdown(f"### {self.title}")
 
@@ -84,24 +89,30 @@ class FloatingChat:
                     with st.chat_message(message["role"]):
                         st.write(message["content"])
 
-            user_input = self._render_input()
-            if user_input:
-                self._append_exchange(user_input)
-                # Rerun để khung chat hiển thị ngay tin nhắn vừa gửi.
-                st.rerun()
+            # Nút Gửi có on_click: callback chạy trước khi render nên khung chat
+            # cập nhật ngay trong cùng lần rerun, không cần gọi st.rerun().
+            with st.form(key=f"{self.key}__form"):
+                text_column, button_column = st.columns([4, 1])
+                with text_column:
+                    st.text_input(
+                        "Tin nhắn",
+                        placeholder=self.placeholder,
+                        label_visibility="collapsed",
+                        key=self._input_key,
+                    )
+                with button_column:
+                    st.form_submit_button("Gửi", on_click=self._on_submit)
 
-    def _render_input(self) -> str | None:
-        with st.form(key=f"{self.key}__form", clear_on_submit=True):
-            text_column, button_column = st.columns([4, 1])
-            with text_column:
-                text = st.text_input(
-                    "Tin nhắn",
-                    placeholder=self.placeholder,
-                    label_visibility="collapsed",
-                )
-            with button_column:
-                submitted = st.form_submit_button("Gửi")
-        return text if submitted and text else None
+    def _on_submit(self) -> None:
+        user_input = (st.session_state.get(self._input_key) or "").strip()
+        if not user_input:
+            return
+        self._append_exchange(user_input)
+        st.session_state[self._input_key] = ""
+
+    @property
+    def _input_key(self) -> str:
+        return f"{self.key}__input"
 
     @property
     def _messages_key(self) -> str:
