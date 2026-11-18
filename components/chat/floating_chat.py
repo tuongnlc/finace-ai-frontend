@@ -66,12 +66,20 @@ div[data-testid="stPopoverBody"] {
         top: auto !important;
         left: 12px !important;
         right: 12px !important;
-        bottom: 92px !important;
+        bottom: calc(92px + env(safe-area-inset-bottom, 0px)) !important;
         width: auto !important;
         max-width: none !important;
-        max-height: 70vh !important;
+        /* Dùng dvh để co theo bàn phím ảo (vh luôn tính cả phần bị bàn phím che). */
+        max-height: min(70vh, 70dvh) !important;
         /* Hủy transform mà Floating UI gán inline để dùng left/right/bottom ở trên. */
         transform: none !important;
+    }
+
+    /* Ô nhập liệu phải >= 16px, nếu không iOS Safari sẽ tự zoom trang
+       (làm khung chat phình to và che mất nội dung phía trên). */
+    div[data-testid="stPopoverBody"] input,
+    div[data-testid="stPopoverBody"] textarea {
+        font-size: 16px !important;
     }
 }
 </style>
@@ -87,11 +95,11 @@ class FloatingChat:
     def __init__(
         self,
         title: str = DEFAULT_TITLE,
-        placeholder: str = "Nhập câu hỏi...",
+        # placeholder: str = "Nhập câu hỏi...",
         key: str = "floating_chat",
     ):
         self.title = title
-        self.placeholder = placeholder
+        # self.placeholder = placeholder
         self.key = key
 
     def render(self) -> None:
@@ -117,7 +125,7 @@ class FloatingChat:
                 with text_column:
                     st.text_input(
                         "Tin nhắn",
-                        placeholder=self.placeholder,
+                        # placeholder=self.placeholder,
                         label_visibility="collapsed",
                         key=self._input_key,
                     )
