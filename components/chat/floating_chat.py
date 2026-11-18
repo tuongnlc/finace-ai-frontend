@@ -5,6 +5,34 @@ import streamlit as st
 DEFAULT_GREETING = "Chào bạn! Tôi có thể giúp gì cho bạn?"
 DEFAULT_TITLE = "🤖 Trợ lý AI"
 
+VIEWPORT_SCRIPT = """
+<script>
+(() => {
+    const updateViewportHeight = () => {
+        const viewport = window.visualViewport;
+        const height = viewport?.height || window.innerHeight;
+        const top = viewport?.offsetTop || 0;
+        document.documentElement.style.setProperty(
+            "--floating-chat-viewport-height",
+            `${height}px`
+        );
+        document.documentElement.style.setProperty(
+            "--floating-chat-viewport-top",
+            `${top}px`
+        );
+    };
+
+    updateViewportHeight();
+    if (!window.__floatingChatViewportListener) {
+        window.__floatingChatViewportListener = true;
+        window.visualViewport?.addEventListener("resize", updateViewportHeight);
+        window.visualViewport?.addEventListener("scroll", updateViewportHeight);
+        window.addEventListener("resize", updateViewportHeight);
+    }
+})();
+</script>
+"""
+
 # Popover trong Streamlit render dạng: stPopover > div > (wrapper) > button[stPopoverButton].
 # Nên phải style theo data-testid="stPopoverButton", không dùng selector `> button`.
 STYLES = """
@@ -58,21 +86,61 @@ div[data-testid="stPopoverBody"] {
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
 }
 
-/* Mobile: khung chat neo theo nút rất dễ tràn/cắt nên chuyển thành
-   bottom-sheet cố định, full chiều ngang, nằm ngay trên nút chat. */
+/* Mobile: chuyển popover thành khung chat toàn màn hình. */
 @media (max-width: 640px) {
     div[data-testid="stPopoverBody"] {
         position: fixed !important;
-        top: auto !important;
-        left: 12px !important;
-        right: 12px !important;
-        bottom: calc(92px + env(safe-area-inset-bottom, 0px)) !important;
-        width: auto !important;
+        top: var(--floating-chat-viewport-top, 0px) !important;
+        right: 0 !important;
+        bottom: auto !important;
+        left: 0 !important;
+        width: 100vw !important;
+        height: var(--floating-chat-viewport-height, 100dvh) !important;
+        max-height: none !important;
         max-width: none !important;
-        /* Dùng dvh để co theo bàn phím ảo (vh luôn tính cả phần bị bàn phím che). */
-        max-height: min(70vh, 70dvh) !important;
-        /* Hủy transform mà Floating UI gán inline để dùng left/right/bottom ở trên. */
+        min-width: 0 !important;
         transform: none !important;
+        box-sizing: border-box !important;
+        display: flex !important;
+        flex-direction: column !important;
+        overflow: hidden !important;
+        border-radius: 0 !important;
+        padding:
+            calc(12px + env(safe-area-inset-top, 0px))
+            12px
+            calc(12px + env(safe-area-inset-bottom, 0px)) !important;
+        z-index: 2147483000 !important;
+    }
+
+    /* Cho khối Streamlit bên trong lấp đầy chiều cao của khung chat. */
+    div[data-testid="stPopoverBody"] > div {
+        display: flex !important;
+        flex: 1 1 auto !important;
+        flex-direction: column !important;
+        width: 100% !important;
+        height: 100% !important;
+        min-height: 0 !important;
+        overflow: hidden !important;
+    }
+
+    /* Lịch sử chat chiếm phần còn lại, ô nhập luôn nằm ngay bên dưới. */
+    div[data-testid="stPopoverBody"] .FLOATING_CHAT_HISTORY_KEY {
+        flex: 1 1 0 !important;
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        overflow-y: auto !important;
+        overscroll-behavior: contain;
+    }
+
+    div[data-testid="stPopoverBody"] .FLOATING_CHAT_HISTORY_KEY .stVerticalBlock {
+        height: 100% !important;
+        min-height: 0 !important;
+    }
+
+    div[data-testid="stPopoverBody"] form {
+        flex: 0 0 auto !important;
+        margin-top: 8px !important;
     }
 
     /* Ô nhập liệu phải >= 16px, nếu không iOS Safari sẽ tự zoom trang
@@ -103,7 +171,10 @@ class FloatingChat:
         self.key = key
 
     def render(self) -> None:
-        st.markdown(STYLES, unsafe_allow_html=True)
+        history_class = f"st-key-{self.key}_history"
+        styles = STYLES.replace("FLOATING_CHAT_HISTORY_KEY", history_class)
+        st.markdown(styles, unsafe_allow_html=True)
+        st.html(VIEWPORT_SCRIPT, unsafe_allow_javascript=True)
         self._render_chat()
 
     @st.fragment
@@ -113,7 +184,7 @@ class FloatingChat:
         with st.popover("💬"):
             st.markdown(f"### {self.title}")
 
-            with st.container(height=320):
+            with st.container(height=320, key=f"{self.key}_history"):
                 for message in self._messages():
                     with st.chat_message(message["role"]):
                         st.write(message["content"])
