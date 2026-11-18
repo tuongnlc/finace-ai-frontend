@@ -130,7 +130,14 @@ class ChatSessionClient:
             headers=headers,
             timeout=self.timeout,
         )
-        response.raise_for_status()
+        if not response.ok:
+            # raise_for_status() che mất body lỗi của PostgREST, khiến việc debug
+            # các lỗi 404 (bảng/schema chưa được expose) rất khó. Nêu rõ body.
+            raise requests.HTTPError(
+                f"{method} {url} -> {response.status_code} {response.reason}: "
+                f"{response.text}",
+                response=response,
+            )
         return response
 
     # -- operations -------------------------------------------------------
