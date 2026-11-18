@@ -5,7 +5,12 @@ import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
+from applications.market_info.integrations.databricks_lakebase import warm_up
 from components.chat.floating_chat import FloatingChat
+
+# Khởi động sớm ngay khi page bắt đầu render: lấy token OAuth + mở sẵn kết nối
+# tới Lakebase ở luồng nền, để lần gửi tin đầu tiên không phải chờ token/TLS.
+warm_up()
 
 # MARKET INFO PAGE
 market_news_page = st.Page(
