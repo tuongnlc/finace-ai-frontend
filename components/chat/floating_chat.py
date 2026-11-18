@@ -1,9 +1,23 @@
 from __future__ import annotations
 
+import time
+from uuid import uuid4
+
 import streamlit as st
+
+from applications.market_info.services.ai_chatbot.session_service import (
+    ChatSessionService,
+)
 
 DEFAULT_GREETING = "Chào bạn! Tôi có thể giúp gì cho bạn?"
 DEFAULT_TITLE = "🤖 Trợ lý AI"
+
+
+@st.cache_resource
+def _get_session_service() -> ChatSessionService:
+    """Service tạo Chat Session, cache lại để tái sử dụng kết nối."""
+    return ChatSessionService()
+
 
 VIEWPORT_SCRIPT = """
 <script>
@@ -203,11 +217,9 @@ class FloatingChat:
     def __init__(
         self,
         title: str = DEFAULT_TITLE,
-        # placeholder: str = "Nhập câu hỏi...",
         key: str = "floating_chat",
     ):
         self.title = title
-        # self.placeholder = placeholder
         self.key = key
 
     def render(self) -> None:
@@ -247,8 +259,21 @@ class FloatingChat:
         user_input = (st.session_state.get(self._input_key) or "").strip()
         if not user_input:
             return
+        self._ensure_session()
         self._append_exchange(user_input)
         st.session_state[self._input_key] = ""
+
+    def _ensure_session(self) -> None:
+        # Lần chat đầu tiên trong phiên tạo mới session + conversation_id;
+        # các tin nhắn sau dùng lại cho tới khi user refresh page.
+        if self._session_id_key in st.session_state:
+            return
+        session = _get_session_service().create_sessions(
+            created_timestamp=int(time.time() * 1000),
+            conversation_id=uuid4(),
+        )
+        st.session_state[self._session_id_key] = session.id
+        st.session_state[self._conversation_id_key] = session.conversation_id
 
     @property
     def _input_key(self) -> str:
@@ -257,6 +282,14 @@ class FloatingChat:
     @property
     def _messages_key(self) -> str:
         return f"{self.key}__messages"
+
+    @property
+    def _session_id_key(self) -> str:
+        return f"{self.key}__session_id"
+
+    @property
+    def _conversation_id_key(self) -> str:
+        return f"{self.key}__conversation_id"
 
     def _messages(self) -> list[dict]:
         if self._messages_key not in st.session_state:
