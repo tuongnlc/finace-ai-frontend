@@ -42,6 +42,7 @@ _http_session: requests.Session | None = None
 # Schemas
 # ---------------------------------------------------------------------------
 class CreateChatSessionRequest(BaseModel):
+    id: Optional[UUID] = None
     created_timestamp: int
     conversation_id: UUID
 
@@ -139,7 +140,7 @@ class ChatSessionClient:
     ) -> GetChatSessionResponse:
         response = self._request(
             "POST",
-            json_body=session.model_dump(mode="json"),
+            json_body=session.model_dump(mode="json", exclude_none=True),
             prefer="return=representation",
         )
         rows = response.json()

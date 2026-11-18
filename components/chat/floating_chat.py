@@ -5,6 +5,9 @@ from uuid import uuid4
 
 import streamlit as st
 
+from applications.market_info.services.ai_chatbot.conversation_service import (
+    ConversationService,
+)
 from applications.market_info.services.ai_chatbot.session_service import (
     ChatSessionService,
 )
@@ -17,6 +20,12 @@ DEFAULT_TITLE = "🤖 Trợ lý AI"
 def _get_session_service() -> ChatSessionService:
     """Service tạo Chat Session, cache lại để tái sử dụng kết nối."""
     return ChatSessionService()
+
+
+@st.cache_resource
+def _get_conversation_service() -> ConversationService:
+    """Service tạo Conversation, cache lại để tái sử dụng kết nối."""
+    return ConversationService()
 
 
 VIEWPORT_SCRIPT = """
@@ -264,16 +273,31 @@ class FloatingChat:
         st.session_state[self._input_key] = ""
 
     def _ensure_session(self) -> None:
-        # Lần chat đầu tiên trong phiên tạo mới session + conversation_id;
-        # các tin nhắn sau dùng lại cho tới khi user refresh page.
+        # Lần chat đầu tiên trong phiên tạo mới cả Conversation và Chat Session.
+        # Chỉ sinh session_id và conversation_id MỘT lần rồi dùng chung cho cả
+        # hai service (hai bảng tham chiếu chéo: session.conversation_id và
+        # conversation.session_id); các tin nhắn sau dùng lại cho tới khi user
+        # refresh page.
         if self._session_id_key in st.session_state:
             return
-        session = _get_session_service().create_sessions(
-            created_timestamp=int(time.time() * 1000),
-            conversation_id=uuid4(),
+
+        created_timestamp = int(time.time() * 1000)
+        session_id = uuid4()
+        conversation_id = uuid4()
+
+        _get_conversation_service().create_conversation(
+            conversation_id=conversation_id,
+            session_id=session_id,
+            created_timestamp=created_timestamp,
         )
-        st.session_state[self._session_id_key] = session.id
-        st.session_state[self._conversation_id_key] = session.conversation_id
+        _get_session_service().create_sessions(
+            session_id=session_id,
+            created_timestamp=created_timestamp,
+            conversation_id=conversation_id,
+        )
+
+        st.session_state[self._session_id_key] = session_id
+        st.session_state[self._conversation_id_key] = conversation_id
 
     @property
     def _input_key(self) -> str:

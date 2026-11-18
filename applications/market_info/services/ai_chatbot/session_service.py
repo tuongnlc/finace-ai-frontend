@@ -27,9 +27,11 @@ class ChatSessionService:
         self,
         created_timestamp: int,
         conversation_id: UUID,
+        session_id: Optional[UUID] = None,
     ) -> ChatSession:
         response = self.client.create_sessions(
             CreateChatSessionRequest(
+                id=session_id,
                 created_timestamp=created_timestamp,
                 conversation_id=conversation_id,
             )
