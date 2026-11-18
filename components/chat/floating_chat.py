@@ -135,11 +135,19 @@ div[data-testid="stPopoverBody"] {
         z-index: 2147483000 !important;
     }
 
-    /* Streamlit bọc nội dung popover trong nhiều lớp div (stPopoverBody > div >
-       .stVerticalBlock > {title, history, form}). Phải đẩy flex xuống tận cùng
-       thì các thuộc tính flex trên history/form mới có tác dụng. Nếu không,
-       history giữ nguyên height:320px và đẩy form ra khỏi vùng nhìn thấy. */
-    div[data-testid="stPopoverBody"] > div {
+    /* Cấu trúc DOM thật của Streamlit popover:
+       stPopoverBody
+         > [data-testid="stVerticalBlock"]            (container chính, cần là flex)
+           > stElementContainer (title)
+           > [data-testid="stLayoutWrapper"]           ← flex item, cần flex:1
+             > .st-key-floating_chat_history          (class key nằm ở đây)
+           > form
+
+       Lưu ý: class "st-key-..." nằm trên stVerticalBlock BÊN TRONG stLayoutWrapper,
+       không phải trên stLayoutWrapper. Nên phải dùng :has() để target đúng wrapper. */
+
+    /* Container chính (con trực tiếp của popover body) là flex column. */
+    div[data-testid="stPopoverBody"] > [data-testid="stVerticalBlock"] {
         display: flex !important;
         flex-direction: column !important;
         flex: 1 1 auto !important;
@@ -149,31 +157,24 @@ div[data-testid="stPopoverBody"] {
         overflow: hidden !important;
     }
 
-    div[data-testid="stPopoverBody"] [data-testid="stVerticalBlock"] {
-        display: flex !important;
-        flex-direction: column !important;
-        flex: 1 1 auto !important;
-        width: 100% !important;
-        height: 100% !important;
-        min-height: 0 !important;
-        overflow: hidden !important;
-    }
-
-    /* Lịch sử chat chiếm phần còn lại, ô nhập luôn nằm ngay bên dưới.
-       height:0 kết hợp flex:1 1 0 để bỏ qua inline style height:320px của
-       st.container và cho khối này co giãn theo không gian còn trống. */
-    div[data-testid="stPopoverBody"] .FLOATING_CHAT_HISTORY_KEY {
+    /* Wrapper của khối lịch sử chat (st.container) - đây mới là flex item
+       cần chiếm phần không gian còn trống. height:0 + flex:1 1 0 để bỏ qua
+       inline style height:320px và co giãn theo không gian còn lại. */
+    div[data-testid="stPopoverBody"] [data-testid="stLayoutWrapper"]:has(.FLOATING_CHAT_HISTORY_KEY) {
         flex: 1 1 0 !important;
         height: 0 !important;
         min-height: 0 !important;
         max-height: none !important;
-        overflow-y: auto !important;
-        overscroll-behavior: contain;
+        overflow: hidden !important;
     }
 
-    div[data-testid="stPopoverBody"] .FLOATING_CHAT_HISTORY_KEY [data-testid="stVerticalBlock"] {
-        height: auto !important;
+    /* Khối stVerticalBlock bên trong lấp đầy chiều cao của wrapper. */
+    div[data-testid="stPopoverBody"] .FLOATING_CHAT_HISTORY_KEY {
+        height: 100% !important;
         min-height: 0 !important;
+        max-height: none !important;
+        overflow-y: auto !important;
+        overscroll-behavior: contain;
     }
 
     /* Form (ô nhập + nút Gửi) cố định ở dưới, không co lại. */
