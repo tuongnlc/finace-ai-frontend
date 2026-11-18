@@ -9,11 +9,15 @@ DEFAULT_TITLE = "🤖 Trợ lý AI"
 # Nên phải style theo data-testid="stPopoverButton", không dùng selector `> button`.
 STYLES = """
 <style>
-/* Ghim nút chat vào góc phải dưới màn hình */
+/* Ghim nút chat vào góc phải dưới màn hình.
+   Lưu ý: container stPopover mặc định có width:100%, nếu không reset width/left
+   thì khối sẽ trải hết chiều ngang và nút bị đẩy về tận mép trái. */
 div[data-testid="stPopover"] {
     position: fixed;
     bottom: 24px;
     right: 24px;
+    left: auto !important;
+    width: auto !important;
     z-index: 9999;
 }
 
