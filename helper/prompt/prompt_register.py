@@ -2,6 +2,7 @@ import os
 
 from dotenv import load_dotenv
 import mlflow
+from mlflow.tracking.client import MlflowClient
 
 load_dotenv()
 
@@ -52,13 +53,15 @@ class PromptRegister:
 
         Trả về đối tượng PromptVersion của MLflow (có ``.format(**variables)``),
         giúp tải template MỘT lần rồi render nhiều lần mà không gọi lại mạng.
+
+        Dùng MlflowClient (read-only) thay cho ``mlflow.genai.load_prompt`` vì hàm
+        fluent có side-effect GHI (link prompt với run/experiment/model, set tag)
+        nên sẽ bị chặn PERMISSION_DENIED khi chỉ có quyền đọc prompt.
         """
-        uri = (
-            f"prompts:/{prompt_name}/{version}"
-            if version is not None
-            else f"prompts:/{prompt_name}@{alias}"
-        )
-        return mlflow.genai.load_prompt(uri)
+        client = MlflowClient()
+        if version is not None:
+            return client.get_prompt_version(prompt_name, version)
+        return client.get_prompt_version_by_alias(prompt_name, alias)
 
     def load_prompt(
         self,
