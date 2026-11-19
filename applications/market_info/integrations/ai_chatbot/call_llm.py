@@ -83,16 +83,26 @@ class LLMClient:
             )
         return self._client
 
+    def load_prompt_template(self):
+        """Tải prompt template (chưa render) từ MLflow để tầng gọi cache lại.
+
+        Trả về đối tượng PromptVersion của MLflow, có thể gọi ``.format(**vars)``
+        nhiều lần mà không cần gọi lại mạng.
+        """
+        return self._register.load_prompt_template(self.prompt_name)
+
     def build_messages(
         self,
         *,
         question: str,
         question_context: str | None = None,
         format_instructions: str = DEFAULT_FORMAT_INSTRUCTIONS,
+        prompt_template=None,
     ) -> list[dict]:
-        """Load prompt từ MLflow và render với dữ liệu truyền vào."""
-        prompt = self._register.load_prompt(
-            self.prompt_name,
+        """Render prompt (dùng template đã cache nếu có) với dữ liệu truyền vào."""
+        if prompt_template is None:
+            prompt_template = self.load_prompt_template()
+        prompt = prompt_template.format(
             format_instructions=format_instructions,
             question=question,
             question_context=question_context,
@@ -109,12 +119,14 @@ class LLMClient:
         question: str,
         question_context: str | None = None,
         format_instructions: str = DEFAULT_FORMAT_INSTRUCTIONS,
+        prompt_template=None,
     ) -> str:
         """Gọi LLM và trả về câu trả lời hoàn chỉnh (không stream)."""
         messages = self.build_messages(
             question=question,
             question_context=question_context,
             format_instructions=format_instructions,
+            prompt_template=prompt_template,
         )
         response = self._get_client().chat.completions.create(
             model=self.model,
