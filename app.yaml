@@ -6,3 +6,5 @@ command: [
 env:
   - name: DATABRICKS_TOKEN
     valueFrom: databricks_token
+  - name: DATABRICKS_HOST
+    value: https://dbc-a4257ab8-9fcb.cloud.databricks.com
