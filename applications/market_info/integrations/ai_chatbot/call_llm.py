@@ -24,7 +24,9 @@ load_dotenv()
 # Databricks AI Gateway configuration
 # ---------------------------------------------------------------------------
 DEFAULT_PROMPT_NAME = "finance_agent_2026.finance_agent_2026_prompt.test_prompt"
-DEFAULT_MODEL = "ai_gateway.llm_model.gpt_oss_20b"
+# DEFAULT_MODEL = "ai_gateway.llm_model.gpt_oss_20b"
+DEFAULT_MODEL = "ai_gateway.llm_model.test_qwen"
+#ai_gateway.llm_model.test_qwen
 DEFAULT_FORMAT_INSTRUCTIONS = (
     "Trả lời trực tiếp bằng văn bản thuần, không bọc JSON hay code block."
 )
