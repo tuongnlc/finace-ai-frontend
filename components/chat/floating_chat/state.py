@@ -5,6 +5,7 @@ from uuid import UUID, uuid4
 
 import streamlit as st
 
+from applications.market_info.integrations.ai_chatbot.call_llm import LLMClient
 from applications.market_info.services.ai_chatbot.conversation_service import (
     ConversationService,
 )
@@ -34,6 +35,18 @@ def _get_conversation_service() -> ConversationService:
 def _get_message_service() -> MessageService:
     """Service tạo Message, cache lại để tái sử dụng kết nối."""
     return MessageService()
+
+
+@st.cache_resource
+def _get_llm_client() -> LLMClient:
+    """Client gọi LLM, cache lại để tái sử dụng kết nối tới AI Gateway."""
+    return LLMClient()
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def _get_prompt_template():
+    """Tải prompt từ MLflow một lần rồi cache, tránh gọi lại mỗi tin nhắn."""
+    return _get_llm_client().load_prompt_template()
 
 
 class ChatState:
@@ -105,13 +118,14 @@ class ChatState:
         messages = self.messages()
         messages.append({"role": "user", "content": user_input})
         self._save_user_message(user_input)
-        # TODO: thay bằng logic gọi LLM/backend thực tế ở đây.
-        messages.append(
-            {
-                "role": "assistant",
-                "content": f"Bạn vừa hỏi: '{user_input}'. Đây là câu trả lời tự động.",
-            }
+
+        # Gọi LLM với prompt đã cache ở tầng UI (client + template), chưa lưu
+        # câu trả lời vào database.
+        answer = _get_llm_client().complete(
+            question=user_input,
+            prompt_template=_get_prompt_template(),
         )
+        messages.append({"role": "assistant", "content": answer})
 
     def _save_user_message(self, content: str) -> None:
         # Mỗi tin nhắn của user là một row trong bảng ai_chatbot.messages, liên kết
