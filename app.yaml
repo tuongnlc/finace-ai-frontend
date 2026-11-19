@@ -3,3 +3,6 @@ command: [
   "run",
   "app.py"
 ]
+env:
+  - name: DATABRICKS_TOKEN
+    valueFrom: databricks_token

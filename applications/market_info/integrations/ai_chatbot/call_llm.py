@@ -15,7 +15,7 @@ from dotenv import load_dotenv
 from openai import OpenAI
 
 from config import get_secret
-from helper.prompt.prompt_register import DEFAULT_PROMPT_ALIAS, PromptRegister
+from helper.prompt.prompt_register import PromptRegister
 
 load_dotenv()
 
@@ -83,39 +83,20 @@ class LLMClient:
             )
         return self._client
 
-    def load_prompt_template(
-        self,
-        *,
-        version: str | int | None = None,
-        alias: str = DEFAULT_PROMPT_ALIAS,
-    ):
-        """Tải prompt (chưa render) để tầng trên cache rồi format nhiều lần."""
-        return self._register.load_prompt_template(
-            self.prompt_name, version=version, alias=alias
-        )
-
     def build_messages(
         self,
         *,
         question: str,
         question_context: str | None = None,
         format_instructions: str = DEFAULT_FORMAT_INSTRUCTIONS,
-        prompt_template=None,
     ) -> list[dict]:
-        """Render prompt thành danh sách messages cho lời gọi LLM.
-
-        Nếu đã có ``prompt_template`` (đã cache ở tầng trên) thì format trực
-        tiếp, tránh gọi lại MLflow Prompt Registry mỗi lần.
-        """
-        variables = {
-            "format_instructions": format_instructions,
-            "question": question,
-            "question_context": question_context,
-        }
-        if prompt_template is not None:
-            prompt = prompt_template.format(**variables)
-        else:
-            prompt = self._register.load_prompt(self.prompt_name, **variables)
+        """Load prompt từ MLflow và render với dữ liệu truyền vào."""
+        prompt = self._register.load_prompt(
+            self.prompt_name,
+            format_instructions=format_instructions,
+            question=question,
+            question_context=question_context,
+        )
         # Prompt dạng text được bọc thành 1 message để dùng chung cho chat API.
         if isinstance(prompt, str):
             return [{"role": "user", "content": prompt}]
@@ -128,14 +109,12 @@ class LLMClient:
         question: str,
         question_context: str | None = None,
         format_instructions: str = DEFAULT_FORMAT_INSTRUCTIONS,
-        prompt_template=None,
     ) -> str:
         """Gọi LLM và trả về câu trả lời hoàn chỉnh (không stream)."""
         messages = self.build_messages(
             question=question,
             question_context=question_context,
             format_instructions=format_instructions,
-            prompt_template=prompt_template,
         )
         response = self._get_client().chat.completions.create(
             model=self.model,
@@ -149,14 +128,12 @@ class LLMClient:
         question: str,
         question_context: str | None = None,
         format_instructions: str = DEFAULT_FORMAT_INSTRUCTIONS,
-        prompt_template=None,
     ) -> Iterator[str]:
         """Gọi LLM và stream dần từng đoạn nội dung trả về."""
         messages = self.build_messages(
             question=question,
             question_context=question_context,
             format_instructions=format_instructions,
-            prompt_template=prompt_template,
         )
         response_stream = self._get_client().chat.completions.create(
             model=self.model,
