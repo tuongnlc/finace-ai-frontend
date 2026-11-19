@@ -43,6 +43,12 @@ class FloatingChat:
                     with st.chat_message(message["role"]):
                         st.write(message["content"])
 
+                # Câu hỏi đang chờ: stream dần câu trả lời ngay khi có token đầu.
+                if self.state.pending_question():
+                    with st.chat_message("assistant"):
+                        answer = st.write_stream(self.state.stream_answer())
+                    self.state.finish_answer(answer)
+
             # Nút Gửi có on_click: callback chạy trước khi render nên khung chat
             # cập nhật ngay trong cùng lần rerun, không cần gọi st.rerun().
             with st.form(key=f"{self.key}__form"):
@@ -62,5 +68,5 @@ class FloatingChat:
         if not user_input:
             return
         self.state.ensure_session()
-        self.state.append_exchange(user_input)
+        self.state.ask(user_input)
         st.session_state[self.state.input_key] = ""

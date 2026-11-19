@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+from typing import Iterator
 from uuid import UUID, uuid4
 
 import streamlit as st
@@ -77,8 +78,15 @@ class ChatState:
         return f"{self.key}__conversation_id"
 
     @property
+    def pending_key(self) -> str:
+        return f"{self.key}__pending"
+
+    @property
     def conversation_id(self) -> UUID | None:
         return st.session_state.get(self.conversation_id_key)
+
+    def pending_question(self) -> str | None:
+        return st.session_state.get(self.pending_key)
 
     def messages(self) -> list[dict]:
         if self.messages_key not in st.session_state:
@@ -114,18 +122,31 @@ class ChatState:
         st.session_state[self.session_id_key] = session_id
         st.session_state[self.conversation_id_key] = conversation_id
 
-    def append_exchange(self, user_input: str) -> None:
+    def ask(self, user_input: str) -> None:
+        """Ghi tin nhắn user và đánh dấu câu hỏi đang chờ để tầng view stream.
+
+        Chạy trong callback nút Gửi nên không gọi LLM ở đây; câu trả lời được
+        stream ở ``stream_answer`` khi fragment render.
+        """
         messages = self.messages()
         messages.append({"role": "user", "content": user_input})
         self._save_user_message(user_input)
+        st.session_state[self.pending_key] = user_input
 
-        # Gọi LLM với prompt đã cache ở tầng UI (client + template), chưa lưu
-        # câu trả lời vào database.
-        answer = _get_llm_client().complete(
-            question=user_input,
+    def stream_answer(self) -> Iterator[str]:
+        """Stream dần câu trả lời của LLM cho câu hỏi đang chờ."""
+        question = self.pending_question()
+        if not question:
+            return
+        yield from _get_llm_client().stream(
+            question=question,
             prompt_template=_get_prompt_template(),
         )
-        messages.append({"role": "assistant", "content": answer})
+
+    def finish_answer(self, answer: str) -> None:
+        """Lưu câu trả lời assistant vào lịch sử và xoá trạng thái chờ."""
+        self.messages().append({"role": "assistant", "content": answer})
+        st.session_state.pop(self.pending_key, None)
 
     def _save_user_message(self, content: str) -> None:
         # Mỗi tin nhắn của user là một row trong bảng ai_chatbot.messages, liên kết

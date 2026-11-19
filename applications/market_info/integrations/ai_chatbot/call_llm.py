@@ -26,7 +26,7 @@ load_dotenv()
 DEFAULT_PROMPT_NAME = "finance_agent_2026.finance_agent_2026_prompt.test_prompt"
 DEFAULT_MODEL = "ai_gateway.llm_model.gpt_oss_20b"
 DEFAULT_FORMAT_INSTRUCTIONS = (
-    'Return JSON: {"answer": "<string>", "confidence": <number>}'
+    "Trả lời trực tiếp bằng văn bản thuần, không bọc JSON hay code block."
 )
 
 
@@ -140,12 +140,14 @@ class LLMClient:
         question: str,
         question_context: str | None = None,
         format_instructions: str = DEFAULT_FORMAT_INSTRUCTIONS,
+        prompt_template=None,
     ) -> Iterator[str]:
         """Gọi LLM và stream dần từng đoạn nội dung trả về."""
         messages = self.build_messages(
             question=question,
             question_context=question_context,
             format_instructions=format_instructions,
+            prompt_template=prompt_template,
         )
         response_stream = self._get_client().chat.completions.create(
             model=self.model,
