@@ -24,10 +24,30 @@ load_dotenv()
 # Databricks AI Gateway configuration
 # ---------------------------------------------------------------------------
 DEFAULT_PROMPT_NAME = "finance_agent_2026.finance_agent_2026_prompt.test_prompt"
-DEFAULT_MODEL = "ai_gateway.llm_model.gpt_oss_20b"
+DEFAULT_MODEL = "ai_gateway.llm_model.test_qwen"
 DEFAULT_FORMAT_INSTRUCTIONS = (
-    'Return JSON: {"answer": "<string>", "confidence": <number>}'
+    "Trả lời trực tiếp bằng văn bản thuần, không bọc JSON hay code block."
 )
+# Giới hạn token sinh ra để chặn model reasoning lặp vô hạn (loop).
+DEFAULT_MAX_TOKENS = 2048
+
+
+def _extract_text(content) -> str:
+    """Lấy phần văn bản từ nội dung model trả về.
+
+    Model reasoning trả ``content`` dạng list các block (vd
+    ``{"type": "reasoning", ...}`` cho phần suy luận, ``{"type": "text", ...}``
+    cho câu trả lời thật). Hàm này bỏ block reasoning, chỉ giữ lại text.
+    """
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return "".join(
+            part.get("text", "")
+            for part in content
+            if isinstance(part, dict) and part.get("type") == "text"
+        )
+    return ""
 
 
 def _setting(name: str) -> str | None:
@@ -65,10 +85,12 @@ class LLMClient:
         prompt_name: str = DEFAULT_PROMPT_NAME,
         model: str = DEFAULT_MODEL,
         timeout: int = 60,
+        max_tokens: int = DEFAULT_MAX_TOKENS,
     ) -> None:
         self.prompt_name = prompt_name
         self.model = model
         self.timeout = timeout
+        self.max_tokens = max_tokens
         self._register = PromptRegister()
         self._client: OpenAI | None = None
 
@@ -131,8 +153,9 @@ class LLMClient:
         response = self._get_client().chat.completions.create(
             model=self.model,
             messages=messages,
+            max_tokens=self.max_tokens,
         )
-        return response.choices[0].message.content or ""
+        return _extract_text(response.choices[0].message.content)
 
     def stream(
         self,
@@ -140,19 +163,23 @@ class LLMClient:
         question: str,
         question_context: str | None = None,
         format_instructions: str = DEFAULT_FORMAT_INSTRUCTIONS,
+        prompt_template=None,
     ) -> Iterator[str]:
         """Gọi LLM và stream dần từng đoạn nội dung trả về."""
         messages = self.build_messages(
             question=question,
             question_context=question_context,
             format_instructions=format_instructions,
+            prompt_template=prompt_template,
         )
         response_stream = self._get_client().chat.completions.create(
             model=self.model,
             messages=messages,
             stream=True,
+            max_tokens=self.max_tokens,
         )
         for chunk in response_stream:
-            content = chunk.choices[0].delta.content
+            # Bỏ các block reasoning (content dạng list), chỉ stream text thật.
+            content = _extract_text(chunk.choices[0].delta.content)
             if content:
                 yield content
