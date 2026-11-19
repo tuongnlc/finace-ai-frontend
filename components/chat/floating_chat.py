@@ -1,9 +1,33 @@
 from __future__ import annotations
 
+import time
+from uuid import uuid4
+
 import streamlit as st
+
+from applications.market_info.integrations.databricks_lakebase import warm_up
+from applications.market_info.services.ai_chatbot.conversation_service import (
+    ConversationService,
+)
+from applications.market_info.services.ai_chatbot.session_service import (
+    ChatSessionService,
+)
 
 DEFAULT_GREETING = "Chào bạn! Tôi có thể giúp gì cho bạn?"
 DEFAULT_TITLE = "🤖 Trợ lý AI"
+
+
+@st.cache_resource
+def _get_session_service() -> ChatSessionService:
+    """Service tạo Chat Session, cache lại để tái sử dụng kết nối."""
+    return ChatSessionService()
+
+
+@st.cache_resource
+def _get_conversation_service() -> ConversationService:
+    """Service tạo Conversation, cache lại để tái sử dụng kết nối."""
+    return ConversationService()
+
 
 VIEWPORT_SCRIPT = """
 <script>
@@ -203,14 +227,15 @@ class FloatingChat:
     def __init__(
         self,
         title: str = DEFAULT_TITLE,
-        # placeholder: str = "Nhập câu hỏi...",
         key: str = "floating_chat",
     ):
         self.title = title
-        # self.placeholder = placeholder
         self.key = key
 
     def render(self) -> None:
+        # Lấy sẵn token OAuth + mở connection tới Lakebase ở luồng nền để lần gửi
+        # tin đầu tiên không phải chờ (chỉ chạy một lần cho cả process).
+        warm_up()
         history_class = f"st-key-{self.key}_history"
         styles = STYLES.replace("FLOATING_CHAT_HISTORY_KEY", history_class)
         st.markdown(styles, unsafe_allow_html=True)
@@ -223,6 +248,8 @@ class FloatingChat:
         # không chạy lại toàn bộ page (tránh reload cả trang mỗi lần gửi).
         with st.popover("💬"):
             st.markdown(f"### {self.title}")
+
+            self._flush_pending()
 
             with st.container(height=320, key=f"{self.key}_history"):
                 for message in self._messages():
@@ -247,8 +274,47 @@ class FloatingChat:
         user_input = (st.session_state.get(self._input_key) or "").strip()
         if not user_input:
             return
-        self._append_exchange(user_input)
+        # Không gọi mạng trong callback: callback không hiển thị được spinner nên
+        # UI sẽ đứng im trong lúc chờ. Chỉ xếp hàng, xử lý ở _flush_pending().
+        st.session_state[self._pending_key] = user_input
         st.session_state[self._input_key] = ""
+
+    def _flush_pending(self) -> None:
+        # Xử lý tin nhắn đang chờ (nếu có) kèm spinner trong lúc gọi API, để
+        # người dùng biết app vẫn đang chạy thay vì tưởng bị treo.
+        user_input = st.session_state.pop(self._pending_key, None)
+        if not user_input:
+            return
+        with st.spinner("Đang gửi..."):
+            self._ensure_session()
+            self._append_exchange(user_input)
+
+    def _ensure_session(self) -> None:
+        # Lần chat đầu tiên trong phiên tạo mới cả Conversation và Chat Session.
+        # Chỉ sinh session_id và conversation_id MỘT lần rồi dùng chung cho cả
+        # hai service (hai bảng tham chiếu chéo: session.conversation_id và
+        # conversation.session_id); các tin nhắn sau dùng lại cho tới khi user
+        # refresh page.
+        if self._session_id_key in st.session_state:
+            return
+
+        created_timestamp = int(time.time() * 1000)
+        session_id = uuid4()
+        conversation_id = uuid4()
+
+        _get_conversation_service().create_conversation(
+            conversation_id=conversation_id,
+            session_id=session_id,
+            created_timestamp=created_timestamp,
+        )
+        _get_session_service().create_sessions(
+            session_id=session_id,
+            created_timestamp=created_timestamp,
+            conversation_id=conversation_id,
+        )
+
+        st.session_state[self._session_id_key] = session_id
+        st.session_state[self._conversation_id_key] = conversation_id
 
     @property
     def _input_key(self) -> str:
@@ -257,6 +323,18 @@ class FloatingChat:
     @property
     def _messages_key(self) -> str:
         return f"{self.key}__messages"
+
+    @property
+    def _pending_key(self) -> str:
+        return f"{self.key}__pending"
+
+    @property
+    def _session_id_key(self) -> str:
+        return f"{self.key}__session_id"
+
+    @property
+    def _conversation_id_key(self) -> str:
+        return f"{self.key}__conversation_id"
 
     def _messages(self) -> list[dict]:
         if self._messages_key not in st.session_state:
