@@ -1,13 +1,4 @@
-from helper.prompt.prompt_register import PromptRegister
-
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-
-from helper.prompt.prompt_register import PromptRegister
-
-test_prompt = [
+floating_chat_prompt = [
     {
         "role": "system",
         "content": (
@@ -37,10 +28,4 @@ test_prompt = [
     },
 ]
 
-prompt_register = PromptRegister()
 
-prompt_register.register_prompt(
-    prompt_name="finance_agent_2026.finance_agent_2026_prompt.test_prompt",
-    prompt_template=test_prompt,
-    enable=True,
-)
